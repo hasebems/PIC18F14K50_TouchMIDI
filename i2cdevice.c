@@ -573,6 +573,25 @@ void MBR3110_init( void )
 	writeI2cWithCmd(CAP_SENSE_ADDRESS,CTRL_CMD,0xff);
 }
 //-------------------------------------------------------------------------
+int MBR3110_checkI2cAddr( void )
+{
+	unsigned char data[2];
+	int err;
+	volatile int cnt = 0;
+
+	while(1) {
+		err = readI2cWithCmd(CAP_SENSE_ADDRESS,I2C_ADDR,data,1);
+		if ( err == 0 ) break;
+		if ( ++cnt > 500 ){	//	if more than 500msec, give up and throw err
+			return err;
+		}
+		__delay_ms(1);
+	}
+	if ( data[0] != CAP_SENSE_ADDRESS ){ return -1; }
+
+	return 0;
+}
+//-------------------------------------------------------------------------
 int MBR3110_checkDevice( void )
 {
 	unsigned char data[2];
@@ -587,10 +606,10 @@ int MBR3110_checkDevice( void )
 		}
 		__delay_ms(1);
 	}
-	if (( data[0] != DEVICE_ID_LOW ) || ( data[1] != DEVICE_ID_HIGH )){ return -1; }
+	if (( data[0] != DEVICE_ID_LOW ) || ( data[1] != DEVICE_ID_HIGH )){ return -2; }
 
 	err = readI2cWithCmd(CAP_SENSE_ADDRESS,FAMILY_ID_ADRS,data,1);
-	if ( data[0] != FAMILY_ID ){ return -2; }
+	if ( data[0] != FAMILY_ID ){ return -3; }
 
 	return 0;
 }
@@ -622,8 +641,8 @@ int MBR3110_writeConfig( unsigned char* capSenseConfigData )
 
 	
 	//	Check I2C Address
-	err = readI2cWithCmd(CAP_SENSE_ADDRESS,I2C_ADDR,data,1);
-	if ( data[0] != CAP_SENSE_ADDRESS ){ return -3; }
+	err = MBR3110_checkI2cAddr();
+	if ( err != 0 ){ return err; }
 
 	//*** Step 2 ***
 	err = MBR3110_checkDevice();
